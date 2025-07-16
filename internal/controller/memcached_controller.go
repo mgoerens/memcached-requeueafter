@@ -99,6 +99,8 @@ func (r *MemcachedReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 		return ctrl.Result{}, err
 	}
 
+	log.Info("Starting reconciliation")
+
 	// Let's just set the status as Unknown when no status is available
 	if len(memcached.Status.Conditions) == 0 {
 		meta.SetStatusCondition(&memcached.Status.Conditions, metav1.Condition{Type: typeAvailableMemcached, Status: metav1.ConditionUnknown, Reason: "Reconciling", Message: "Starting reconciliation"})
@@ -223,6 +225,8 @@ func (r *MemcachedReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 			return ctrl.Result{}, err
 		}
 
+		log.Info("Created Deployment, requeuing after 1 minute",
+			"Deployment.Namespace", found.Namespace, "Deployment.Name", found.Name)
 		// Deployment created successfully
 		// We will requeue the reconciliation so that we can ensure the state
 		// and move forward for the next operations
@@ -266,6 +270,8 @@ func (r *MemcachedReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 			return ctrl.Result{}, err
 		}
 
+		log.Info("Updated Deployment, requeuing",
+			"Deployment.Namespace", found.Namespace, "Deployment.Name", found.Name)
 		// Now, that we update the size we want to requeue the reconciliation
 		// so that we can ensure that we have the latest state of the resource before
 		// update. Also, it will help ensure the desired state on the cluster
@@ -281,6 +287,8 @@ func (r *MemcachedReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 		log.Error(err, "Failed to update Memcached status")
 		return ctrl.Result{}, err
 	}
+
+	log.Info("Finished reconciliation")
 
 	return ctrl.Result{}, nil
 }
