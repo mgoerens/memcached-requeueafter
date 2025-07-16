@@ -25,6 +25,7 @@ import (
 	// Import all Kubernetes client auth plugins (e.g. Azure, GCP, OIDC, etc.)
 	// to ensure that exec-entrypoint and run can make use of them.
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
+	"k8s.io/client-go/util/workqueue"
 
 	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
@@ -208,7 +209,8 @@ func main() {
 		Scheme: mgr.GetScheme(),
 		// Add a Recorder to the reconciler.
 		// This allows the operator author to emit events during reconcilliation.
-		Recorder: mgr.GetEventRecorderFor("memcached-controller"),
+		Recorder:    mgr.GetEventRecorderFor("memcached-controller"),
+		RateLimiter: workqueue.DefaultTypedControllerRateLimiter[ctrl.Request](),
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "Memcached")
 		os.Exit(1)

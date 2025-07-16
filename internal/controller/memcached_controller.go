@@ -31,6 +31,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/tools/record"
+	"k8s.io/client-go/util/workqueue"
 	"k8s.io/utils/ptr"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -53,8 +54,9 @@ const (
 // MemcachedReconciler reconciles a Memcached object
 type MemcachedReconciler struct {
 	client.Client
-	Scheme   *runtime.Scheme
-	Recorder record.EventRecorder
+	Scheme      *runtime.Scheme
+	Recorder    record.EventRecorder
+	RateLimiter workqueue.TypedRateLimiter[ctrl.Request]
 }
 
 // The following markers are used to generate the rules permissions (RBAC) on config/rbac using controller-gen
@@ -270,12 +272,16 @@ func (r *MemcachedReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 			return ctrl.Result{}, err
 		}
 
+		duration := r.RateLimiter.When(req)
+		log.Info("Duration for request",
+			"Duration", duration)
+
 		log.Info("Updated Deployment, requeuing",
 			"Deployment.Namespace", found.Namespace, "Deployment.Name", found.Name)
 		// Now, that we update the size we want to requeue the reconciliation
 		// so that we can ensure that we have the latest state of the resource before
 		// update. Also, it will help ensure the desired state on the cluster
-		return ctrl.Result{Requeue: true}, nil
+		return ctrl.Result{RequeueAfter: duration}, nil
 	}
 
 	// The following implementation will update the status
@@ -289,6 +295,7 @@ func (r *MemcachedReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 	}
 
 	log.Info("Finished reconciliation")
+	r.RateLimiter.Forget(req)
 
 	return ctrl.Result{}, nil
 }
